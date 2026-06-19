@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -97,6 +98,93 @@ func GetSchedules(c *gin.Context) {
 	})
 }
 
+func UpdateSchedule(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的ID",
+		})
+		return
+	}
+
+	var req models.UpdateScheduleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	var schedule models.Schedule
+	result := database.DB.First(&schedule, uint(id))
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "策略不存在",
+		})
+		return
+	}
+
+	if req.OnTime != "" && !isValidTimeFormat(req.OnTime) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "开启时间格式错误，请使用 HH:mm 格式（如 18:00）",
+		})
+		return
+	}
+	if req.OffTime != "" && !isValidTimeFormat(req.OffTime) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "关闭时间格式错误，请使用 HH:mm 格式（如 06:00）",
+		})
+		return
+	}
+
+	oldOnTime := schedule.OnTime
+	oldOffTime := schedule.OffTime
+
+	if req.GroupName != "" {
+		schedule.GroupName = req.GroupName
+	}
+	if req.OnTime != "" {
+		schedule.OnTime = req.OnTime
+	}
+	if req.OffTime != "" {
+		schedule.OffTime = req.OffTime
+	}
+	if req.Status != "" {
+		schedule.Status = req.Status
+	}
+
+	log.Printf("🔄 Updating schedule %d: %s (ON: %s->%s, OFF: %s->%s)",
+		schedule.ID, schedule.GroupName,
+		oldOnTime, schedule.OnTime,
+		oldOffTime, schedule.OffTime)
+
+	scheduler.GlobalScheduler.RemoveSchedule(uint(id))
+
+	result = database.DB.Save(&schedule)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "更新数据库失败: " + result.Error.Error(),
+		})
+		return
+	}
+
+	if schedule.Status == "active" {
+		err = scheduler.GlobalScheduler.AddSchedule(&schedule)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "启动新定时任务失败: " + err.Error(),
+			})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "定时策略更新成功，旧任务已销毁",
+		"data":    schedule,
+	})
+}
+
 func DeleteSchedule(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -116,6 +204,8 @@ func DeleteSchedule(c *gin.Context) {
 		return
 	}
 
+	log.Printf("🗑️  Deleting schedule %d (%s)", id, schedule.GroupName)
+
 	scheduler.GlobalScheduler.RemoveSchedule(uint(id))
 
 	result = database.DB.Delete(&schedule)
@@ -127,7 +217,7 @@ func DeleteSchedule(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "策略删除成功",
+		"message": "策略删除成功，定时任务已销毁",
 	})
 }
 

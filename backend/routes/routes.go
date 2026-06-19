@@ -24,6 +24,7 @@ func SetupRouter() *gin.Engine {
 		{
 			schedule.POST("/create", handlers.CreateSchedule)
 			schedule.GET("/list", handlers.GetSchedules)
+			schedule.PUT("/:id", handlers.UpdateSchedule)
 			schedule.DELETE("/:id", handlers.DeleteSchedule)
 		}
 		api.GET("/status/stream", handlers.GetStatusStream)

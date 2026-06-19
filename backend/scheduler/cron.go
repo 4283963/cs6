@@ -33,8 +33,12 @@ func (s *Scheduler) AddSchedule(schedule *models.Schedule) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.jobs[schedule.ID]; exists {
-		s.RemoveSchedule(schedule.ID)
+	if entryIDs, exists := s.jobs[schedule.ID]; exists {
+		for _, entryID := range entryIDs {
+			s.cron.Remove(entryID)
+		}
+		delete(s.jobs, schedule.ID)
+		log.Printf("Old schedule %d removed before adding new one", schedule.ID)
 	}
 
 	onHour, onMin, _ := parseTime(schedule.OnTime)
@@ -67,7 +71,8 @@ func (s *Scheduler) AddSchedule(schedule *models.Schedule) error {
 	}
 
 	s.jobs[schedule.ID] = []cron.EntryID{onID, offID}
-	log.Printf("Schedule added for group %s: ON=%s, OFF=%s", schedule.GroupName, schedule.OnTime, schedule.OffTime)
+	log.Printf("✅ Schedule added/updated - ID: %d, Group: %s, ON: %s (cron: %s), OFF: %s (cron: %s)",
+		schedule.ID, schedule.GroupName, schedule.OnTime, onSpec, schedule.OffTime, offSpec)
 	return nil
 }
 
@@ -78,9 +83,12 @@ func (s *Scheduler) RemoveSchedule(id uint) {
 	if entryIDs, exists := s.jobs[id]; exists {
 		for _, entryID := range entryIDs {
 			s.cron.Remove(entryID)
+			log.Printf("  - Cron entry %d removed for schedule %d", entryID, id)
 		}
 		delete(s.jobs, id)
-		log.Printf("Schedule %d removed", id)
+		log.Printf("✅ Schedule %d completely removed from memory", id)
+	} else {
+		log.Printf("⚠️  Schedule %d not found in memory (may have been removed already)", id)
 	}
 }
 

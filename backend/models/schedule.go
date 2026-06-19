@@ -17,3 +17,10 @@ type CreateScheduleRequest struct {
 	OnTime    string `json:"on_time" binding:"required"`
 	OffTime   string `json:"off_time" binding:"required"`
 }
+
+type UpdateScheduleRequest struct {
+	GroupName string `json:"group_name"`
+	OnTime    string `json:"on_time"`
+	OffTime   string `json:"off_time"`
+	Status    string `json:"status"`
+}

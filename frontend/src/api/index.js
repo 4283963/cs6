@@ -17,4 +17,8 @@ export const deleteSchedule = (id) => {
   return request.delete(`/schedule/${id}`)
 }
 
+export const updateSchedule = (id, data) => {
+  return request.put(`/schedule/${id}`, data)
+}
+
 export default request
