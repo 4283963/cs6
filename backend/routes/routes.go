@@ -26,6 +26,15 @@ func SetupRouter() *gin.Engine {
 			schedule.GET("/list", handlers.GetSchedules)
 			schedule.PUT("/:id", handlers.UpdateSchedule)
 			schedule.DELETE("/:id", handlers.DeleteSchedule)
+			schedule.POST("/:id/precheck", handlers.TriggerPreCheck)
+		}
+		weather := api.Group("/weather")
+		{
+			weather.GET("/current", handlers.GetWeather)
+			weather.PUT("/update", handlers.UpdateWeather)
+			weather.POST("/simulate/storm", handlers.SimulateStorm)
+			weather.POST("/simulate/normal", handlers.SimulateNormal)
+			weather.GET("/stream", handlers.GetWeatherStream)
 		}
 		api.GET("/status/stream", handlers.GetStatusStream)
 	}

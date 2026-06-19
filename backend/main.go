@@ -6,10 +6,12 @@ import (
 	"streetlight-controller/models"
 	"streetlight-controller/routes"
 	"streetlight-controller/scheduler"
+	"streetlight-controller/weather"
 )
 
 func main() {
 	database.Init()
+	weather.Init()
 	scheduler.Init()
 
 	loadExistingSchedules()

@@ -221,6 +221,29 @@ func DeleteSchedule(c *gin.Context) {
 	})
 }
 
+func TriggerPreCheck(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的ID",
+		})
+		return
+	}
+
+	err = scheduler.GlobalScheduler.TriggerPreCheckByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "触发预检查失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "预检查已触发，请查看日志确认结果",
+	})
+}
+
 func GetStatusStream(c *gin.Context) {
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
